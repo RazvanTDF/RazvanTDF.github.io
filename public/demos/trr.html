@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TRR — Live Demo (auto-play mock-up)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- highlight.js (core + a few languages) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+
+  <style>
+    :root { color-scheme: light dark; }
+    .card { border-radius: 1rem; box-shadow: 0 12px 32px rgba(0,0,0,.10); }
+    .badge { border-radius: 9999px; padding: .25rem .6rem; font-weight: 600; }
+
+    /* blinking caret for the "typing" editor */
+    .caret::after{
+      content:"▍"; margin-left:1px;
+      animation: blink 1s steps(1) infinite;
+      color:#6366f1;
+    }
+    @keyframes blink { 50% { opacity:0; } }
+
+    /* finding pop-in */
+    .pop{ animation: pop .35s cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes pop{ from{ opacity:0; transform: translateY(8px) scale(.98);} to{opacity:1; transform:none;} }
+
+    /* scanning sweep over the code panel */
+    .scan{ position:absolute; left:0; right:0; height:42px; pointer-events:none;
+      background:linear-gradient(180deg, rgba(99,102,241,0) 0%, rgba(99,102,241,.18) 50%, rgba(99,102,241,0) 100%);
+      border-top:1px solid rgba(99,102,241,.5); border-bottom:1px solid rgba(99,102,241,.5);
+      opacity:0; transition:opacity .2s;
+    }
+    .spin{ animation: spin 1s linear infinite; }
+    @keyframes spin{ to{ transform: rotate(360deg);} }
+
+    .dot-typing span{ animation: dotpulse 1.2s infinite; display:inline-block; }
+    .dot-typing span:nth-child(2){ animation-delay:.2s; }
+    .dot-typing span:nth-child(3){ animation-delay:.4s; }
+    @keyframes dotpulse{ 0%,60%,100%{opacity:.25;} 30%{opacity:1;} }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 to-sky-50 dark:from-neutral-900 dark:to-neutral-950 text-neutral-900 dark:text-neutral-100">
+  <div class="min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="px-6 pt-5 pb-4 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">TRR — Tutor, Reviewer &amp; Refactor</h1>
+        <span class="badge text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 border border-amber-300/50">LIVE DEMO · mock-up</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span id="langBadge" class="badge text-sm bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 border border-indigo-300/50">Language: —</span>
+        <span id="status" class="text-sm text-neutral-500 min-w-[180px] inline-flex items-center gap-2"></span>
+        <button id="btnReplay" class="px-3 py-2 rounded-xl bg-neutral-200 dark:bg-neutral-800 text-sm hover:bg-neutral-300 dark:hover:bg-neutral-700">↺ Replay</button>
+        <button id="btnPause" class="px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 text-sm">Pause</button>
+      </div>
+    </header>
+
+    <!-- Step indicator -->
+    <div class="px-6 pb-3">
+      <ol id="steps" class="flex flex-wrap items-center gap-2 text-xs"></ol>
+    </div>
+
+    <!-- Main 50/50 -->
+    <main class="grow px-6 pb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+        <!-- Left: Code -->
+        <section class="card bg-white/85 dark:bg-neutral-900/70 p-4 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="font-semibold">Code under review</h2>
+            <div class="text-sm text-neutral-500"><span id="charCount">0</span> chars</div>
+          </div>
+
+          <div class="relative grow">
+            <div id="scan" class="scan"></div>
+            <pre class="m-0 h-full min-h-[46vh] overflow-auto rounded-lg bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-3"><code id="editor" class="hljs caret text-sm leading-relaxed" style="background:transparent;padding:0;"></code></pre>
+          </div>
+
+          <div id="toast" class="mt-3 hidden rounded-lg border border-emerald-300/60 bg-emerald-50/70 dark:bg-emerald-900/20 dark:border-emerald-800/40 p-3 text-sm text-emerald-800 dark:text-emerald-200"></div>
+        </section>
+
+        <!-- Right: Findings -->
+        <section class="card bg-white/85 dark:bg-neutral-900/70 p-4 flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-semibold">Findings</h2>
+            <div class="text-sm text-neutral-500">
+              <span id="fixCount">0</span> fixes · <span id="sugCount">0</span> suggestions
+            </div>
+          </div>
+
+          <div id="summary" class="text-sm text-neutral-600 dark:text-neutral-300 mb-3 min-h-[1.25rem]"></div>
+
+          <!-- Metrics -->
+          <div class="mb-4 grid grid-cols-2 gap-2 text-sm">
+            <div class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/30">
+              <div class="font-semibold text-neutral-800 dark:text-neutral-100">LLM Tokens Used</div>
+              <div id="metricTokens" class="text-lg font-mono text-indigo-600 dark:text-indigo-300">—</div>
+            </div>
+            <div class="p-2 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/30">
+              <div class="font-semibold text-neutral-800 dark:text-neutral-100">Estimated Cost</div>
+              <div id="metricCost" class="text-lg font-mono text-emerald-600 dark:text-emerald-300">—</div>
+            </div>
+          </div>
+
+          <div class="overflow-auto grow pr-1">
+            <h3 class="font-semibold mb-1">Fixes</h3>
+            <ul id="fixes" class="space-y-2 mb-4"></ul>
+            <div id="fixesEmpty" class="text-sm text-neutral-400 mb-4">No fixes yet…</div>
+
+            <h3 class="font-semibold mb-1">Suggestions</h3>
+            <ul id="suggestions" class="space-y-2"></ul>
+            <div id="sugEmpty" class="text-sm text-neutral-400">No suggestions yet…</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+  // ====================== Demo data (mock-up scenario) ======================
+  const DEMO_CODE =
+`# lang: py
+def dump_lines(path):
+    f = open(path, "r")          # no context manager
+    data = f.read()
+    f.close()
+    return data
+
+def print_status(url):
+    import requests
+    r = requests.get(url)        # no timeout
+    print("status=" + str(r.status_code))
+
+items = ["a", "b", "c"]
+for i in range(len(items)):      # prefer enumerate
+    print(items[i])
+
+try:
+    risky = 1 / 0
+except:                          # bare except
+    print("oops")
+`;
+
+  // Findings that "appear" one by one while scanning
+  const FINDINGS = [
+    { kind:'sug', line:3,  src:'Rule', text:'Use `with open(...) as f:` to avoid file handle leaks.' },
+    { kind:'sug', line:10, src:'Rule', text:'Provide a `timeout=` in requests calls.' },
+    { kind:'sug', line:11, src:'Rule', text:'Prefer f-strings over string concatenation.' },
+    { kind:'sug', line:14, src:'Rule', text:'Prefer `for i, item in enumerate(seq):` over `range(len(seq))`.' },
+    { kind:'fix', line:18, src:'Rule', text:'Replace bare `except:` with `except Exception:`' },
+    { kind:'sug', line:1,  src:'AI',   text:'Function `dump_lines` reads the whole file into memory — fine for small files, but stream line-by-line for large inputs.' },
+    { kind:'sug', line:9,  src:'AI',   text:'Consider returning a structured result and raising for non-2xx responses instead of printing.' },
+  ];
+
+  // Auto-fixes that get "applied" live (search -> replace in the visible code)
+  const AUTOFIXES = [
+    { find:'except:', replace:'except Exception:', label:'Replace bare except' },
+    { find:'r = requests.get(url)', replace:'r = requests.get(url, timeout=10)', label:'Add timeout=10' },
+    { find:'print("status=" + str(r.status_code))', replace:'print(f"status={r.status_code}")', label:'Concat → f-string' },
+  ];
+
+  // Mock AI discussion thread (plays at the end)
+  const THREAD = [
+    { who:'user', text:'Why wrap the file read in a context manager?' },
+    { who:'ai',   text:'If `f.read()` raises, `f.close()` is skipped and the handle leaks. `with open(...) as f:` always closes it, even on exceptions — and it’s less code.' },
+    { who:'user', text:'Makes sense. Apply it.' },
+    { who:'ai',   text:'Done ✅ — refactored `dump_lines` to use `with open(path) as f:` and recorded your feedback as “helpful”.' },
+  ];
+
+  // ====================== Helpers ======================
+  const $ = id => document.getElementById(id);
+  const editor = $('editor');
+  const charCount = $('charCount');
+  const langBadge = $('langBadge');
+  const statusEl = $('status');
+  const scan = $('scan');
+  const fixesUl = $('fixes'), sugUl = $('suggestions');
+  const fixCount = $('fixCount'), sugCount = $('sugCount');
+  const fixesEmpty = $('fixesEmpty'), sugEmpty = $('sugEmpty');
+  const summary = $('summary');
+  const toast = $('toast');
+  const metricTokens = $('metricTokens'), metricCost = $('metricCost');
+  const stepsEl = $('steps');
+
+  let paused = false;
+  let runToken = 0; // invalidates an in-flight run when we replay
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+  // pausable sleep that also bails out when a new run starts
+  function sleep(ms){
+    const myToken = runToken;
+    return new Promise(res=>{
+      const start = Date.now();
+      (function tick(){
+        if (myToken !== runToken) return res('cancelled');
+        if (paused) return setTimeout(tick, 80);
+        if (Date.now()-start >= ms) return res();
+        setTimeout(tick, Math.min(40, ms));
+      })();
+    });
+  }
+  const cancelled = () => false; // sleep returns 'cancelled' string; we check that inline
+
+  function highlight(code){
+    try { return hljs.highlight(code, {language:'python'}).value; }
+    catch { return esc(code); }
+  }
+
+  function setStatus(html, spinning){
+    statusEl.innerHTML = (spinning ? '<span class="inline-block w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full spin"></span>' : '') + `<span>${html}</span>`;
+  }
+
+  const STEP_NAMES = ['Type code','Detect language','Scan & analyze','Stream findings','Apply auto-fixes','Discuss with AI'];
+  function renderSteps(active){
+    stepsEl.innerHTML = STEP_NAMES.map((n,i)=>{
+      const state = i<active ? 'done' : (i===active ? 'now' : 'todo');
+      const cls = state==='done' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-300/50'
+               : state==='now'  ? 'bg-indigo-600 text-white border-indigo-600'
+               : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400 border-neutral-300/50 dark:border-neutral-700/50';
+      const mark = state==='done' ? '✓ ' : `${i+1}. `;
+      return `<li class="badge border ${cls}">${mark}${n}</li>`
+        + (i<STEP_NAMES.length-1 ? '<li class="text-neutral-400">→</li>' : '');
+    }).join('');
+  }
+
+  function resetUI(){
+    editor.innerHTML = '';
+    editor.classList.add('caret');
+    charCount.textContent = '0';
+    langBadge.textContent = 'Language: —';
+    langBadge.className = 'badge text-sm bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 border border-indigo-300/50';
+    fixesUl.innerHTML = ''; sugUl.innerHTML = '';
+    fixCount.textContent = '0'; sugCount.textContent = '0';
+    fixesEmpty.style.display = ''; sugEmpty.style.display = '';
+    summary.textContent = '';
+    toast.classList.add('hidden'); toast.innerHTML='';
+    metricTokens.textContent = '—'; metricCost.textContent = '—';
+    scan.style.opacity = '0';
+  }
+
+  function addFinding(f){
+    const li = document.createElement('li');
+    li.className = 'pop p-3 rounded-lg border text-sm ' +
+      (f.kind==='fix'
+        ? 'border-emerald-200/60 dark:border-emerald-800/40 bg-emerald-50/50 dark:bg-emerald-900/20'
+        : 'border-neutral-200 dark:border-neutral-800');
+    const label = f.kind==='fix' ? 'Fix' : 'Suggestion';
+    const srcCls = f.src==='AI' ? 'text-indigo-700 dark:text-indigo-300'
+                : f.src==='Guideline' ? 'text-amber-700 dark:text-amber-300'
+                : 'text-emerald-700 dark:text-emerald-300';
+    li.innerHTML = `<span class="font-semibold">${label}:</span> ${esc(f.text)}
+      ${f.line ? `<span class="text-neutral-500">(line ${f.line})</span>` : ''}
+      <span class="ml-2 ${srcCls} text-xs font-semibold">${f.src}</span>`;
+    if (f.kind==='fix'){ fixesUl.appendChild(li); fixesEmpty.style.display='none'; }
+    else { sugUl.appendChild(li); sugEmpty.style.display='none'; }
+  }
+
+  // ====================== The demo sequence ======================
+  async function typeCode(){
+    renderSteps(0);
+    setStatus('Engineer is pasting code…', false);
+    editor.classList.add('caret');
+    let shown = '';
+    // type in small chunks so it feels alive but doesn't take forever
+    for (let i=0; i<DEMO_CODE.length; i += 3){
+      shown = DEMO_CODE.slice(0, i+3);
+      editor.innerHTML = highlight(shown);
+      charCount.textContent = shown.length;
+      const r = await sleep(12); if (r==='cancelled') return false;
+    }
+    editor.innerHTML = highlight(DEMO_CODE);
+    charCount.textContent = DEMO_CODE.length;
+    return true;
+  }
+
+  async function detectLang(){
+    renderSteps(1);
+    setStatus('Detecting language…', true);
+    if (await sleep(900)==='cancelled') return false;
+    langBadge.textContent = 'Language: py';
+    langBadge.className = 'badge text-sm bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200 border border-emerald-300/40';
+    setStatus('Detected <b>Python</b> (inline hint <code>#&nbsp;lang:&nbsp;py</code>)', false);
+    if (await sleep(700)==='cancelled') return false;
+    return true;
+  }
+
+  async function scanAndStream(){
+    renderSteps(2);
+    setStatus('Analyzing with heuristics + local LLM…', true);
+    editor.classList.remove('caret');
+    scan.style.opacity = '1';
+
+    // sweep the scan line down the code panel
+    const host = scan.parentElement;
+    const max = host.clientHeight - 42;
+    const passes = 1;
+    for (let p=0; p<passes; p++){
+      for (let y=0; y<=max; y+=14){
+        scan.style.transform = `translateY(${y}px)`;
+        if (await sleep(16)==='cancelled') return false;
+      }
+    }
+    scan.style.opacity = '0';
+
+    renderSteps(3);
+    // stream findings in
+    let f=0, s=0;
+    for (const item of FINDINGS){
+      setStatus('Streaming findings…', true);
+      if (await sleep(650)==='cancelled') return false;
+      addFinding(item);
+      if (item.kind==='fix'){ f++; fixCount.textContent=f; } else { s++; sugCount.textContent=s; }
+      summary.textContent = `Language: py. ${f} fixes, ${s} suggestions.`;
+    }
+
+    // metrics tick up
+    setStatus('Tallying token usage…', true);
+    const totalTokens = 1280;
+    for (let t=0; t<=totalTokens; t+=Math.ceil(totalTokens/24)){
+      metricTokens.textContent = Math.min(t,totalTokens).toLocaleString();
+      metricCost.textContent = '$' + (Math.min(t,totalTokens)/1e6*15).toFixed(5);
+      if (await sleep(35)==='cancelled') return false;
+    }
+    metricTokens.textContent = totalTokens.toLocaleString();
+    metricCost.textContent = '$' + (totalTokens/1e6*15).toFixed(5);
+    summary.textContent = `Language: py. ${f} fixes, ${s} suggestions. | LLM: review complete.`;
+    setStatus('Analysis complete ✓', false);
+    if (await sleep(900)==='cancelled') return false;
+    return true;
+  }
+
+  async function applyFixes(){
+    renderSteps(4);
+    setStatus('Applying auto-fixes…', true);
+    let code = DEMO_CODE;
+    let applied = 0;
+    for (const fx of AUTOFIXES){
+      if (code.includes(fx.find)){
+        code = code.replace(fx.find, fx.replace);
+        applied++;
+        editor.innerHTML = highlight(code);
+        charCount.textContent = code.length;
+        // flash a fix card at the top of Fixes
+        const li = document.createElement('li');
+        li.className = 'pop p-3 rounded-lg border border-emerald-300/70 bg-emerald-100/60 dark:bg-emerald-900/30 dark:border-emerald-700/50 text-sm';
+        li.innerHTML = `<span class="font-semibold">AUTO:</span> ${esc(fx.label)} <span class="ml-2 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">AutoFix</span>`;
+        fixesUl.prepend(li);
+        fixCount.textContent = fixesUl.children.length;
+        if (await sleep(800)==='cancelled') return false;
+      }
+    }
+    toast.classList.remove('hidden');
+    toast.innerHTML = `✓ Applied <b>${applied}</b> auto-fixes. The code on the left was rewritten in place.`;
+    setStatus('Auto-fixes applied ✓', false);
+    if (await sleep(1200)==='cancelled') return false;
+    return true;
+  }
+
+  async function discuss(){
+    renderSteps(5);
+    setStatus('Opening discussion thread with the reviewer…', false);
+
+    // build a thread panel under the first suggestion
+    const panel = document.createElement('li');
+    panel.className = 'pop p-3 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-900/20';
+    panel.innerHTML = `<div class="text-xs text-neutral-500 mb-2 font-semibold">💬 Discuss · "Use with open(...)"</div>
+      <div id="thread" class="space-y-2"></div>`;
+    sugUl.prepend(panel);
+    const thread = $('thread');
+
+    for (const m of THREAD){
+      if (m.who==='ai'){
+        // typing indicator
+        const t = document.createElement('div');
+        t.className = 'text-sm p-2 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-900/30';
+        t.innerHTML = `<span class="text-xs uppercase font-semibold mr-2 text-indigo-700 dark:text-indigo-300">ai</span><span class="dot-typing"><span>●</span><span>●</span><span>●</span></span>`;
+        thread.appendChild(t);
+        if (await sleep(1100)==='cancelled') return false;
+        t.remove();
+      }
+      const div = document.createElement('div');
+      div.className = 'pop text-sm p-2 rounded-lg border ' +
+        (m.who==='ai' ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-900/30'
+                      : 'border-neutral-200 dark:border-neutral-800');
+      div.innerHTML = `<span class="text-xs uppercase font-semibold mr-2 ${m.who==='ai'?'text-indigo-700 dark:text-indigo-300':'text-neutral-500'}">${m.who}</span>${esc(m.text)}`;
+      thread.appendChild(div);
+      thread.scrollTop = thread.scrollHeight;
+      if (await sleep(900)==='cancelled') return false;
+    }
+    setStatus('Demo complete — replaying soon ↻', false);
+    return true;
+  }
+
+  async function run(){
+    const myToken = ++runToken;
+    resetUI();
+    renderSteps(0);
+    if (await typeCode()===false || myToken!==runToken) return;
+    if (await detectLang()===false || myToken!==runToken) return;
+    if (await scanAndStream()===false || myToken!==runToken) return;
+    if (await applyFixes()===false || myToken!==runToken) return;
+    if (await discuss()===false || myToken!==runToken) return;
+    renderSteps(6);
+    // auto-loop after a pause
+    if (await sleep(5000)==='cancelled') return;
+    if (myToken===runToken) run();
+  }
+
+  // ====================== Controls ======================
+  $('btnReplay').addEventListener('click', ()=>{ paused=false; $('btnPause').textContent='Pause'; run(); });
+  $('btnPause').addEventListener('click', ()=>{
+    paused = !paused;
+    $('btnPause').textContent = paused ? 'Resume' : 'Pause';
+    if (paused) setStatus('Paused ⏸', false);
+  });
+
+  renderSteps(0);
+  run();
+  </script>
+</body>
+</html>

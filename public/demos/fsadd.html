@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║  FSADD — BUDGET WISHLIST APP                                               ║
+  ║  Portfolio showcase page — standalone, no build required                  ║
+  ╠══════════════════════════════════════════════════════════════════════════╣
+  ║                                                                            ║
+  ║  WHAT IT IS:                                                               ║
+  ║  A full-stack "budget wishlist" application — the user lists the things    ║
+  ║  they want (products), assigns each a price and a priority, and the app    ║
+  ║  tracks the total budget, the amount spent and the amount remaining.       ║
+  ║  Lists can be shared with friends via a link / QR code, and friends can    ║
+  ║  mark a product as "purchased" (e.g. a surprise gift).                     ║
+  ║                                                                            ║
+  ║  TECH STACK:                                                              ║
+  ║  • Frontend : React 19 + TypeScript + Vite + React Router 7               ║
+  ║               Recharts (charts), socket.io-client (real-time),            ║
+  ║               qrcode.react (QR code), canvas-confetti (animations)        ║
+  ║  • Backend  : Node.js + Express, MongoDB (Mongoose), JWT (authentication),║
+  ║               Socket.IO (live notifications), Multer (image upload),      ║
+  ║               Swagger (API docs), Winston (logging),                      ║
+  ║               Jest (testing), Joi/Zod (schema validation)                 ║
+  ║                                                                            ║
+  ║  KEY FEATURES:                                                            ║
+  ║  • Authentication & registration (JWT)                                    ║
+  ║  • Multiple wishlists per user                                            ║
+  ║  • Breaking a product down into sub-costs with progress tracking          ║
+  ║  • Budget adjustment with history (add / subtract + reason)               ║
+  ║  • Sharing via link + QR code                                             ║
+  ║  • Friends system + real-time notifications (Socket.IO)                   ║
+  ║  • Statistics page (line / bar / pie charts — Recharts)                   ║
+  ║  • Dark mode (manual + automatic OS theme detection)                      ║
+  ║  • Responsive design, inspired by the Apple/iOS style                     ║
+  ║                                                                            ║
+  ║  NOTE: This page is a STATIC REPLICA of the real interface, with demo      ║
+  ║  data. The CSS is taken 1:1 from the React app                            ║
+  ║  (budget-wishlist-frontend/src/App.css). The theme toggle works, and an    ║
+  ║  optional slow auto-scroll "guided tour" is available.                    ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FSADD — Budget Wishlist App · Portfolio</title>
+
+  <style>
+    /* ════════════════════════════════════════════════════════════════════
+       CSS VARIABLES — the design system (colors, shadows, corner radii)
+       Taken from the real app. The light theme is the default; the dark
+       theme is activated manually (data-theme="dark" attribute) or
+       automatically based on the operating system preference.
+       ════════════════════════════════════════════════════════════════════ */
+    :root {
+      --color-bg: #FFFFFF;
+      --color-surface: #F2F2F7;
+      --color-surface-2: #E5E5EA;
+      --color-border: rgba(60, 60, 67, 0.08);
+      --color-border-strong: rgba(60, 60, 67, 0.22);
+      --color-text: #1C1C1E;
+      --color-text-muted: #636366;
+      --color-text-tertiary: #AEAEB2;
+
+      --color-accent: #5E5CE6;
+      --color-accent-dim: rgba(94, 92, 230, 0.10);
+      --color-accent-text: #5E5CE6;
+
+      --color-green: #34C759;  --color-green-text: #1F7A37;  --color-green-bg: #E3F9EB;
+      --color-yellow: #FF9F0A; --color-yellow-text: #A05A00; --color-yellow-bg: #FFF4E0;
+      --color-red: #FF3B30;    --color-red-text: #C0302A;    --color-red-bg: #FFEEED;
+      --color-blue: #007AFF;   --color-blue-text: #005CC8;   --color-blue-bg: #E3EEFF;
+
+      --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+      --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.14), 0 2px 10px rgba(0, 0, 0, 0.06);
+      --shadow-accent: 0 3px 10px rgba(94, 92, 230, 0.30);
+
+      --radius-sm: 10px; --radius-md: 14px; --radius-lg: 20px; --radius-full: 999px;
+    }
+
+    /* Dark mode — manual activation via the data-theme attribute on <html> */
+    [data-theme="dark"] {
+      --color-bg: #1c1c1c;
+      --color-surface: #262626;
+      --color-surface-2: #333333;
+      --color-border: rgba(255, 255, 255, 0.12);
+      --color-border-strong: rgba(255, 255, 255, 0.3);
+      --color-text: #f0f0f0;
+      --color-text-muted: #999999;
+      --color-text-tertiary: #777777;
+    }
+
+    /* Minimal reset */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+        'Helvetica Neue', 'Segoe UI', sans-serif;
+      background: var(--color-surface);
+      color: var(--color-text);
+      line-height: 1.47;
+      -webkit-font-smoothing: antialiased;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+       PORTFOLIO BANNER — the intro section (not part of the app)
+       ════════════════════════════════════════════════════════════════════ */
+    .portfolio-hero {
+      position: relative;
+      background: linear-gradient(135deg, #5E5CE6 0%, #7C7AFF 100%);
+      color: #fff;
+      padding: 3.5rem 1.5rem 4.5rem;
+      text-align: center;
+    }
+    /* Soft fade at the bottom so the header blends into the page background */
+    .portfolio-hero::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: 0; height: 90px;
+      background: linear-gradient(180deg, transparent 0%, var(--color-surface) 100%);
+      pointer-events: none;
+    }
+    .portfolio-hero h1 {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 0.5rem;
+    }
+    .portfolio-hero p {
+      font-size: clamp(15px, 2.5vw, 18px);
+      opacity: 0.92;
+      max-width: 620px;
+      margin: 0 auto 1.5rem;
+      line-height: 1.6;
+    }
+    .tech-badges {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+      max-width: 720px; margin: 0 auto;
+    }
+    .tech-badge {
+      background: rgba(255, 255, 255, 0.18);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(6px);
+      padding: 5px 14px;
+      border-radius: var(--radius-full);
+      font-size: 13px; font-weight: 600;
+    }
+
+    /* Features strip */
+    .features-strip {
+      max-width: 900px; margin: 2.5rem auto 0;
+      padding: 0 1.5rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+    }
+    .feature-card {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .feature-card .icon { font-size: 26px; }
+    .feature-card h3 { font-size: 15px; margin: 8px 0 4px; color: var(--color-text); }
+    .feature-card p { font-size: 13px; color: var(--color-text-muted); line-height: 1.5; }
+
+    /* "Screenshot" label above each interface capture */
+    .screen-label {
+      max-width: 600px; margin: 3rem auto 0; padding: 0 1rem;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .screen-label .num {
+      width: 26px; height: 26px; border-radius: var(--radius-full);
+      background: var(--color-accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .screen-label .txt { font-size: 14px; font-weight: 700; color: var(--color-text); }
+    .screen-label .sub { font-size: 13px; color: var(--color-text-muted); }
+
+    /* Fixed button for toggling the theme */
+    .theme-fab {
+      position: fixed; top: 16px; right: 16px; z-index: 5000;
+      width: 44px; height: 44px; border-radius: var(--radius-full);
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);
+      color: #fff; font-size: 18px; cursor: pointer;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* Large fixed button for the auto tour (slow scroll), bottom-right */
+    .scroll-fab {
+      position: fixed; bottom: 24px; right: 24px; z-index: 5000;
+      height: 56px; padding: 0 28px; border-radius: var(--radius-full);
+      border: none;
+      background: var(--color-accent); color: #fff;
+      font-size: 16px; font-weight: 700; cursor: pointer;
+      box-shadow: var(--shadow-lg); white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: transform 0.15s, background 0.15s;
+    }
+    .scroll-fab:hover { transform: translateY(-2px); }
+    .scroll-fab.active { background: var(--color-red); }
+
+    /* ════════════════════════════════════════════════════════════════════
+       THE REAL APP STYLES (App.css) — replicated for fidelity
+       ════════════════════════════════════════════════════════════════════ */
+    .app {
+      max-width: 600px; margin: 0 auto; padding: 1.25rem 1rem 3rem;
+    }
+
+    /* ─── Top Bar ─── */
+    .top-bar {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 8px; margin-bottom: 0.75rem; flex-wrap: wrap;
+    }
+    .top-bar-username { font-size: 13px; color: var(--color-text-muted); margin-right: auto; }
+    .top-bar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .btn-bell, .btn-friends {
+      position: relative; width: 34px; height: 34px;
+      border: 1px solid var(--color-border); border-radius: var(--radius-full);
+      background: var(--color-bg); color: var(--color-text-muted); cursor: pointer;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, transform 0.15s; box-shadow: var(--shadow-sm);
+    }
+    .btn-bell:hover, .btn-friends:hover { background: var(--color-surface); transform: scale(1.05); }
+    .btn-friends-badge {
+      position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px;
+      border-radius: var(--radius-full); background: var(--color-accent); color: #fff;
+      font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; padding: 0 4px;
+      border: 2px solid var(--color-surface);
+    }
+    .btn-edit-budget {
+      font-size: 13px; font-weight: 500; padding: 5px 13px;
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-surface); color: var(--color-text-muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-edit-budget:hover { background: var(--color-surface-2); color: var(--color-text); }
+
+    /* ─── Budget Header — the main card with budget / spent / remaining ─── */
+    .budget-header {
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: 1.375rem 1.5rem;
+      margin-bottom: 0.875rem; box-shadow: var(--shadow-sm);
+    }
+    .budget-title-row {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.125rem;
+    }
+    .budget-title { font-size: 17px; font-weight: 700; color: var(--color-text); letter-spacing: -0.3px; }
+    .budget-stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .budget-stat {
+      background: var(--color-surface); border-radius: var(--radius-md);
+      padding: 0.875rem 1rem; display: flex; flex-direction: column; gap: 5px;
+    }
+    .budget-stat-label {
+      font-size: 10px; font-weight: 700; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .budget-stat-value { font-size: 22px; font-weight: 700; color: var(--color-text); letter-spacing: -0.6px; line-height: 1.1; }
+    .budget-stat-value.green { color: var(--color-green-text); }
+    .budget-stat-value.yellow { color: var(--color-yellow-text); }
+    .budget-stat-value.red { color: var(--color-red-text); }
+    .progress-wrap {
+      margin-top: 1.125rem; background: var(--color-surface);
+      border-radius: var(--radius-full); height: 7px; overflow: hidden;
+    }
+    .progress-bar { height: 100%; border-radius: var(--radius-full); }
+    .progress-bar.green { background: var(--color-green); }
+    .progress-bar.yellow { background: var(--color-yellow); }
+    .progress-bar.red { background: var(--color-red); }
+    .share-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-share-copy, .btn-share-qr {
+      font-size: 12px; font-weight: 500; padding: 5px 14px;
+      border: 1px solid var(--color-border); border-radius: var(--radius-full);
+      background: var(--color-surface); color: var(--color-text-muted);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-share-copy:hover, .btn-share-qr:hover {
+      background: var(--color-accent-dim); color: var(--color-accent-text); border-color: var(--color-accent);
+    }
+
+    /* ─── Wishlists Bar — tabs for multiple lists ─── */
+    .wishlists-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .wl-tab {
+      padding: 5px 14px; border: 1px solid var(--color-border); border-radius: 99px;
+      background: transparent; color: var(--color-text-muted); font-size: 13px;
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px;
+    }
+    .wl-tab:hover { background: var(--color-surface); color: var(--color-text); }
+    .wl-tab-active { background: var(--color-text); color: var(--color-bg); border-color: var(--color-text); }
+    .wl-tab-new { color: var(--color-text-muted); border-style: dashed; }
+
+    /* ─── Add Item Form — the form for adding a product ─── */
+    .form {
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: 1.25rem 1.375rem;
+      margin-bottom: 0.875rem; box-shadow: var(--shadow-sm);
+    }
+    .form-main-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 120px; }
+    .field label {
+      font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    .field input, .field select {
+      padding: 9px 12px; border: 1.5px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-surface); color: var(--color-text); font-size: 14px;
+      outline: none; width: 100%; transition: all 0.18s; appearance: none; font-family: inherit;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--color-accent); background: var(--color-bg);
+      box-shadow: 0 0 0 3px var(--color-accent-dim);
+    }
+    .field input::placeholder { color: var(--color-text-tertiary); }
+    .category-toggles { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+    .btn-category {
+      padding: 5px 13px; border: 1px solid var(--color-border); border-radius: var(--radius-full);
+      background: transparent; color: var(--color-text-muted); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-category:hover { background: var(--color-accent-dim); color: var(--color-accent-text); border-color: var(--color-accent); }
+    .btn-category.btn-category-active {
+      background: var(--color-accent); color: #fff; border-color: var(--color-accent);
+      box-shadow: 0 2px 8px rgba(94, 92, 230, 0.28);
+    }
+    .form-bottom-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+    .btn-add {
+      margin-left: auto; padding: 9px 22px; border: none; border-radius: var(--radius-full);
+      background: var(--color-accent); color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: all 0.18s; white-space: nowrap; box-shadow: var(--shadow-accent); font-family: inherit;
+    }
+    .btn-add:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    /* ─── Section Header ─── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .section-label {
+      display: block; font-size: 11px; font-weight: 700; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.09em; padding-left: 2px;
+    }
+    .section-count { font-size: 12px; color: var(--color-text-muted); }
+
+    /* ─── Wishlist Item — the card of a single product in the list ─── */
+    .item-card {
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      border-left: 3px solid transparent; border-radius: var(--radius-md);
+      padding: 1rem 1.125rem; margin-bottom: 0.5rem;
+      transition: box-shadow 0.2s, opacity 0.2s; box-shadow: var(--shadow-sm);
+    }
+    .item-card:hover { box-shadow: var(--shadow-md); }
+    .item-card.highlight-green { border-left-color: var(--color-green); }
+    .item-card.highlight-yellow { border-left-color: var(--color-yellow); }
+    .item-card.highlight-red { border-left-color: var(--color-red); }
+    .item-card.fully-done { opacity: 0.48; }
+    .item-top { display: flex; align-items: center; gap: 10px; }
+    .check-btn {
+      width: 22px; height: 22px; border-radius: var(--radius-full);
+      border: 1.5px solid var(--color-border); cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      background: transparent; transition: all 0.18s;
+    }
+    .check-btn.check-done { background: var(--color-green); border-color: var(--color-green); box-shadow: 0 2px 8px rgba(52, 199, 89, 0.35); }
+    .item-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .item-dot.dot-green { background: var(--color-green); }
+    .item-dot.dot-yellow { background: var(--color-yellow); }
+    .item-dot.dot-red { background: var(--color-red); }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 15px; font-weight: 600; color: var(--color-text); letter-spacing: -0.15px; }
+    .item-name.item-name-done { text-decoration: line-through; color: var(--color-text-muted); font-weight: 400; }
+    .item-meta { display: flex; align-items: center; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
+    .badge { font-size: 10px; padding: 2px 8px; border-radius: var(--radius-full); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+    .badge.badge-high { background: var(--color-red-bg); color: var(--color-red-text); }
+    .badge.badge-medium { background: var(--color-yellow-bg); color: var(--color-yellow-text); }
+    .badge.badge-low { background: var(--color-green-bg); color: var(--color-green-text); }
+    .badge.badge-partial { background: var(--color-blue-bg); color: var(--color-blue-text); }
+    .toggle-link { font-size: 12px; color: var(--color-accent-text); background: none; border: none; cursor: pointer; font-weight: 500; padding: 0; font-family: inherit; }
+    .item-price-col { text-align: right; flex-shrink: 0; }
+    .item-price { font-size: 15px; font-weight: 700; color: var(--color-text); letter-spacing: -0.4px; }
+    .item-price.price-done { text-decoration: line-through; color: var(--color-text-muted); font-weight: 400; }
+    .price-paid { font-size: 13px; font-weight: 600; color: var(--color-text); }
+    .price-paid-label { font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
+    .price-remaining { font-size: 12px; color: var(--color-text-tertiary); text-decoration: line-through; }
+    .btn-img-upload {
+      width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--color-border);
+      background: transparent; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0; cursor: pointer; transition: background 0.15s;
+    }
+    .btn-img-upload:hover { background: var(--color-surface); }
+    .btn-delete {
+      width: 28px; height: 28px; border-radius: var(--radius-sm); border: 1px solid var(--color-border);
+      background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: var(--color-text-muted); flex-shrink: 0; transition: all 0.15s;
+    }
+    .btn-delete:hover { background: var(--color-red-bg); border-color: var(--color-red); color: var(--color-red-text); }
+
+    /* ─── Item Breakdown — splitting into sub-costs ─── */
+    .breakdown-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+    .breakdown-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--color-border); }
+    .breakdown-row:last-of-type { border-bottom: none; }
+    .bd-check {
+      width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--color-border);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      background: transparent; transition: all 0.15s; color: #fff; font-size: 11px;
+    }
+    .bd-check.bd-check-done { background: var(--color-accent); border-color: var(--color-accent); }
+    .bd-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }
+    .bd-label { flex: 1; font-size: 14px; color: var(--color-text); }
+    .bd-amount { font-size: 14px; font-weight: 600; color: var(--color-text); }
+    .bd-done { text-decoration: line-through; color: var(--color-text-muted); font-weight: 400; }
+    .bd-progress { margin-top: 10px; }
+    .bd-progress-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-muted); margin-bottom: 5px; }
+    .bd-progress-bar-wrap { background: var(--color-surface); border-radius: var(--radius-full); height: 5px; overflow: hidden; }
+    .bd-progress-bar { height: 100%; border-radius: var(--radius-full); background: var(--color-accent); }
+
+    /* ─── Notifications Panel ─── */
+    .notifications-panel {
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 0.875rem; box-shadow: var(--shadow-sm);
+    }
+    .notifications-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.875rem; }
+    .btn-mark-read {
+      font-size: 12px; font-weight: 600; padding: 4px 12px; border: none; border-radius: var(--radius-full);
+      background: var(--color-accent-dim); color: var(--color-accent-text); cursor: pointer; transition: all 0.15s;
+    }
+    .btn-mark-read:hover { background: var(--color-accent); color: #fff; }
+    .notification-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+    .notification-row:last-child { border-bottom: none; }
+    .notification-row.notification-unread { background: var(--color-accent-dim); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .notification-icon { font-size: 18px; flex-shrink: 0; }
+    .notification-content { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .notification-message { font-size: 14px; font-weight: 500; color: var(--color-text); text-align: left; }
+    .notification-time { font-size: 12px; color: var(--color-text-muted); text-align: left; }
+    .notification-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
+
+    /* ─── Stats Page — summary cards ─── */
+    .stats-summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+    .stats-card {
+      background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 12px;
+      padding: 1rem; display: flex; flex-direction: column; gap: 4px; text-align: center;
+    }
+    .stats-card-value { font-size: 28px; font-weight: 600; color: var(--color-text); }
+    .stats-card-label { font-size: 12px; color: var(--color-text-muted); }
+    .stats-chart-box {
+      background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 12px;
+      padding: 1.25rem; margin-bottom: 1.25rem;
+    }
+    .stats-chart-title { font-size: 13px; color: var(--color-text-muted); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Mini bar-chart for the stats (stands in for Recharts in this static demo) */
+    .demo-chart { display: flex; align-items: flex-end; gap: 14px; height: 160px; padding: 0 8px; }
+    .demo-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+    .demo-bar { width: 70%; border-radius: 6px 6px 0 0; }
+    .demo-bar-label { font-size: 12px; color: var(--color-text-muted); }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 1rem 0 0.5rem; }
+    .btn-page {
+      padding: 6px 16px; border: 1px solid var(--color-border); border-radius: 8px;
+      background: transparent; color: var(--color-text); font-size: 13px; cursor: pointer;
+    }
+    .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-info { font-size: 13px; color: var(--color-text-muted); }
+
+    footer.portfolio-footer {
+      text-align: center; padding: 2.5rem 1rem 3rem; color: var(--color-text-muted); font-size: 13px;
+    }
+
+    /* Responsive — same breakpoints as the real app */
+    @media (max-width: 640px) {
+      .app { padding: 1rem 0.75rem; }
+      .budget-stats-grid { grid-template-columns: 1fr 1fr; }
+      .form-main-row { flex-direction: column; }
+      .form-main-row .field { max-width: 100% !important; }
+    }
+    @media (max-width: 500px) {
+      .stats-summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Floating button for toggling light/dark — demonstrates the app's dual theme -->
+  <button class="theme-fab" id="themeFab" title="Toggle light/dark theme" aria-label="Toggle theme">🌙</button>
+
+  <!-- Floating button to start/stop the slow auto-scroll -->
+  <button class="scroll-fab" id="scrollFab" title="Start/stop the automatic scroll" aria-label="Auto scroll">▶ auto tour</button>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 1 — INTRO (portfolio banner)
+       ════════════════════════════════════════════════════════════════════ -->
+  <header class="portfolio-hero">
+    <h1>✦ Budget Wishlist App</h1>
+    <p>
+      A full-stack application for managing your wishes on a budget. Add products,
+      track your spending, share lists with friends and get real-time notifications
+      when someone buys you a gift.
+    </p>
+    <div class="tech-badges">
+      <span class="tech-badge">React 19</span>
+      <span class="tech-badge">TypeScript</span>
+      <span class="tech-badge">Vite</span>
+      <span class="tech-badge">Node.js</span>
+      <span class="tech-badge">Express</span>
+      <span class="tech-badge">MongoDB</span>
+      <span class="tech-badge">Socket.IO</span>
+      <span class="tech-badge">JWT Auth</span>
+      <span class="tech-badge">Recharts</span>
+      <span class="tech-badge">Swagger</span>
+      <span class="tech-badge">Jest</span>
+    </div>
+  </header>
+
+  <!-- Grid of key features -->
+  <section class="features-strip">
+    <div class="feature-card">
+      <div class="icon">💰</div>
+      <h3>Real-time budget</h3>
+      <p>Track the total budget, the amount spent and the remaining amount, with a color-coded progress bar.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🧩</div>
+      <h3>Sub-cost breakdown</h3>
+      <p>Split an expensive product into components and check them off one by one as you buy them.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔗</div>
+      <h3>Sharing & QR code</h3>
+      <p>Send your list to friends via a link or QR code; they can mark products as purchased.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔔</div>
+      <h3>Live notifications</h3>
+      <p>Socket.IO instantly sends a notification when a friend visits your list or buys something.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📊</div>
+      <h3>Statistics</h3>
+      <p>Charts of monthly spending and the distribution of products by priority (Recharts).</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🌙</div>
+      <h3>Dark mode</h3>
+      <p>Light/dark theme with automatic detection of the operating system preference.</p>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 2 — THE MAIN INTERFACE (HomePage)
+       A static replica of the main page, with demo data.
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="screen-label">
+    <span class="num">1</span>
+    <span class="txt">Home page</span>
+    <span class="sub">— budget, add form & the wishlist</span>
+  </div>
+
+  <main class="app">
+    <!-- Top bar: username + actions (notifications, friends, statistics, profile, theme) -->
+    <div class="top-bar">
+      <span class="top-bar-username">florina</span>
+      <div class="top-bar-actions">
+        <button class="btn-bell" title="Notifications">
+          🔔 <span class="btn-friends-badge">3</span>
+        </button>
+        <button class="btn-friends" title="Friends">
+          ♟ <span class="btn-friends-badge">5</span>
+        </button>
+        <button class="btn-edit-budget" title="Statistics">📊</button>
+        <button class="btn-edit-budget" title="Profile">👤</button>
+        <button class="btn-edit-budget" title="Toggle theme">🌙</button>
+        <button class="btn-edit-budget">sign out</button>
+      </div>
+    </div>
+
+    <!-- Notifications panel (opened here for demonstration) -->
+    <div class="notifications-panel">
+      <div class="notifications-panel-header">
+        <span class="budget-title">🔔 notifications</span>
+        <button class="btn-mark-read">mark all read</button>
+      </div>
+      <div class="notification-row notification-unread">
+        <span class="notification-icon">🎁</span>
+        <div class="notification-content">
+          <span class="notification-message">Andrei bought you "Sony WH-1000XM5 headphones"!</span>
+          <span class="notification-time">5 minutes ago</span>
+        </div>
+        <span class="notification-dot"></span>
+      </div>
+      <div class="notification-row notification-unread">
+        <span class="notification-icon">👀</span>
+        <div class="notification-content">
+          <span class="notification-message">Maria visited your wishlist</span>
+          <span class="notification-time">1 hour ago</span>
+        </div>
+        <span class="notification-dot"></span>
+      </div>
+      <div class="notification-row">
+        <span class="notification-icon">🎁</span>
+        <div class="notification-content">
+          <span class="notification-message">Ioana bought you "Book: Atomic Habits"!</span>
+          <span class="notification-time">yesterday</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Budget card: total / spent / remaining + progress bar + sharing -->
+    <div class="budget-header">
+      <div class="budget-title-row">
+        <span class="budget-title">✦ budget wishlist</span>
+        <button class="btn-edit-budget">✎ adjust budget</button>
+      </div>
+      <div class="budget-stats-grid">
+        <div class="budget-stat">
+          <span class="budget-stat-label">total budget</span>
+          <span class="budget-stat-value">5,000 RON</span>
+        </div>
+        <div class="budget-stat">
+          <span class="budget-stat-label">spent</span>
+          <span class="budget-stat-value">3,250 RON</span>
+        </div>
+        <div class="budget-stat">
+          <span class="budget-stat-label">remaining</span>
+          <span class="budget-stat-value yellow">1,750 RON</span>
+        </div>
+      </div>
+      <!-- Progress bar: yellow because more than 60% of the budget is used -->
+      <div class="progress-wrap">
+        <div class="progress-bar yellow" style="width: 65%;"></div>
+      </div>
+      <div class="share-row">
+        <button class="btn-share-copy">⎘ copy link</button>
+        <button class="btn-share-qr">▣ QR code</button>
+      </div>
+    </div>
+
+    <!-- Wishlists bar (a user can have multiple lists) -->
+    <div class="wishlists-bar">
+      <button class="wl-tab wl-tab-active">⭐ Main</button>
+      <button class="wl-tab">🎂 Birthday</button>
+      <button class="wl-tab">🏠 New home</button>
+      <button class="wl-tab wl-tab-new">+ new list</button>
+    </div>
+
+    <!-- Add-item form with category templates (breakdown) -->
+    <div class="form">
+      <div class="form-main-row">
+        <div class="field" style="flex: 2;">
+          <label>product</label>
+          <input type="text" placeholder="what do you want?" value="Dell XPS 13 Laptop" />
+        </div>
+        <div class="field" style="max-width: 120px;">
+          <label>price (RON)</label>
+          <input type="number" placeholder="0" value="6200" />
+        </div>
+        <div class="field" style="max-width: 130px;">
+          <label>priority</label>
+          <select>
+            <option>high</option>
+            <option selected>medium</option>
+            <option>low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-bottom-row">
+        <div class="category-toggles">
+          <button class="btn-category btn-category-active">💻 tech</button>
+          <button class="btn-category">✈️ travel</button>
+          <button class="btn-category">👗 fashion</button>
+          <button class="btn-category">🛠 custom</button>
+        </div>
+        <button class="btn-add">+ add</button>
+      </div>
+    </div>
+
+    <!-- Header of the wishlist section -->
+    <section>
+      <div class="section-header">
+        <span class="section-label">wishes</span>
+        <span class="section-count">4 items</span>
+      </div>
+
+      <!-- Item 1: high priority (red border), with breakdown open -->
+      <div class="item-card highlight-red">
+        <div class="item-top">
+          <button class="check-btn" aria-label="Mark"></button>
+          <div class="item-dot dot-red"></div>
+          <div class="item-info">
+            <div class="item-name">Sony WH-1000XM5 Headphones</div>
+            <div class="item-meta">
+              <span class="badge badge-high">high</span>
+              <span class="badge badge-partial">partially paid</span>
+              <button class="toggle-link">▲ hide</button>
+            </div>
+          </div>
+          <div class="item-price-col">
+            <div class="price-paid">900 RON <span class="price-paid-label">paid</span></div>
+            <div class="price-remaining">600 RON left</div>
+          </div>
+          <button class="btn-img-upload" title="Upload image">📷</button>
+          <button class="btn-delete" aria-label="Delete">✕</button>
+        </div>
+        <!-- Breakdown into sub-costs, with a progress bar -->
+        <div class="breakdown-panel">
+          <div class="breakdown-row">
+            <button class="bd-check bd-check-done">✓</button>
+            <span class="bd-icon">🎧</span>
+            <span class="bd-label bd-done">Headphones</span>
+            <span class="bd-amount bd-done">700 RON</span>
+          </div>
+          <div class="breakdown-row">
+            <button class="bd-check bd-check-done">✓</button>
+            <span class="bd-icon">🧳</span>
+            <span class="bd-label bd-done">Carry case</span>
+            <span class="bd-amount bd-done">200 RON</span>
+          </div>
+          <div class="breakdown-row">
+            <button class="bd-check"></button>
+            <span class="bd-icon">🔌</span>
+            <span class="bd-label">Extra cable + adapter</span>
+            <span class="bd-amount">600 RON</span>
+          </div>
+          <div class="bd-progress">
+            <div class="bd-progress-meta">
+              <span>900 / 1,500 RON</span>
+              <span>60%</span>
+            </div>
+            <div class="bd-progress-bar-wrap">
+              <div class="bd-progress-bar" style="width: 60%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Item 2: medium priority (yellow border) -->
+      <div class="item-card highlight-yellow">
+        <div class="item-top">
+          <button class="check-btn" aria-label="Mark"></button>
+          <div class="item-dot dot-yellow"></div>
+          <div class="item-info">
+            <div class="item-name">Dell XPS 13 Laptop</div>
+            <div class="item-meta">
+              <span class="badge badge-medium">medium</span>
+            </div>
+          </div>
+          <div class="item-price-col">
+            <div class="item-price">6,200 RON</div>
+          </div>
+          <button class="btn-img-upload" title="Upload image">📷</button>
+          <button class="btn-delete" aria-label="Delete">✕</button>
+        </div>
+      </div>
+
+      <!-- Item 3: low priority (green border) -->
+      <div class="item-card highlight-green">
+        <div class="item-top">
+          <button class="check-btn" aria-label="Mark"></button>
+          <div class="item-dot dot-green"></div>
+          <div class="item-info">
+            <div class="item-name">Book: Atomic Habits</div>
+            <div class="item-meta">
+              <span class="badge badge-low">low</span>
+            </div>
+          </div>
+          <div class="item-price-col">
+            <div class="item-price">75 RON</div>
+          </div>
+          <button class="btn-img-upload" title="Upload image">📷</button>
+          <button class="btn-delete" aria-label="Delete">✕</button>
+        </div>
+      </div>
+
+      <!-- Item 4: fully purchased (dimmed + strikethrough text) -->
+      <div class="item-card highlight-green fully-done">
+        <div class="item-top">
+          <button class="check-btn check-done" aria-label="Mark">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1.5,5 4,7.5 8.5,2.5" />
+            </svg>
+          </button>
+          <div class="item-dot dot-green"></div>
+          <div class="item-info">
+            <div class="item-name item-name-done">Limited edition T-shirt</div>
+            <div class="item-meta">
+              <span class="badge badge-low">low</span>
+            </div>
+          </div>
+          <div class="item-price-col">
+            <div class="item-price price-done">150 RON</div>
+          </div>
+          <button class="btn-img-upload" title="Upload image">🖼</button>
+          <button class="btn-delete" aria-label="Delete">✕</button>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <button class="btn-page" disabled>← prev</button>
+        <span class="page-info">1 / 2</span>
+        <button class="btn-page">next →</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 3 — THE STATISTICS PAGE (StatsPage)
+       In the real app the charts are rendered with Recharts; here they are
+       reproduced statically so the page stays self-contained, with no
+       external dependencies.
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="screen-label">
+    <span class="num">2</span>
+    <span class="txt">Statistics</span>
+    <span class="sub">— summary & charts (Recharts in the real app)</span>
+  </div>
+
+  <main class="app">
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem;">
+      <button class="btn-edit-budget">← back</button>
+      <span class="section-label" style="margin: 0;">statistics</span>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="stats-summary-grid">
+      <div class="stats-card">
+        <span class="stats-card-value">24</span>
+        <span class="stats-card-label">total wishes</span>
+      </div>
+      <div class="stats-card">
+        <span class="stats-card-value" style="color: #639922;">11</span>
+        <span class="stats-card-label">purchased</span>
+      </div>
+      <div class="stats-card">
+        <span class="stats-card-value" style="color: #EF9F27;">13</span>
+        <span class="stats-card-label">pending</span>
+      </div>
+      <div class="stats-card">
+        <span class="stats-card-value">5</span>
+        <span class="stats-card-label">active friends</span>
+      </div>
+    </div>
+
+    <!-- Chart: monthly spending (static representation of a LineChart/BarChart) -->
+    <div class="stats-chart-box">
+      <p class="stats-chart-title">spending last 6 months (RON)</p>
+      <div class="demo-chart">
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 35%; background: #185FA5;"></div><span class="demo-bar-label">Jan</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 55%; background: #185FA5;"></div><span class="demo-bar-label">Feb</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 42%; background: #185FA5;"></div><span class="demo-bar-label">Mar</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 78%; background: #185FA5;"></div><span class="demo-bar-label">Apr</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 60%; background: #185FA5;"></div><span class="demo-bar-label">May</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 90%; background: #185FA5;"></div><span class="demo-bar-label">Jun</span></div>
+      </div>
+    </div>
+
+    <!-- Chart: items by priority (the real colors from StatsPage) -->
+    <div class="stats-chart-box">
+      <p class="stats-chart-title">items by priority</p>
+      <div class="demo-chart">
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 85%; background: #E24B4A;"></div><span class="demo-bar-label">high</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 65%; background: #EF9F27;"></div><span class="demo-bar-label">medium</span></div>
+        <div class="demo-bar-col"><div class="demo-bar" style="height: 40%; background: #639922;"></div><span class="demo-bar-label">low</span></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="portfolio-footer">
+    <p>FSADD — Budget Wishlist App · full-stack project (React + Node.js + MongoDB)</p>
+    <p style="margin-top: 4px; opacity: 0.7;">Static showcase page — the real interface runs as a React/Vite app.</p>
+  </footer>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       Minimal JS — only to make the theme toggle and the auto-scroll work.
+       The theme logic mirrors DarkModeContext.tsx: a data-theme attribute
+       on <html> + automatic detection of the OS preference on first load.
+       ════════════════════════════════════════════════════════════════════ -->
+  <script>
+    const root = document.documentElement;
+    const fab = document.getElementById('themeFab');
+
+    // On first load: respect the operating system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      root.setAttribute('data-theme', 'dark');
+      fab.textContent = '☀️';
+    }
+
+    fab.addEventListener('click', () => {
+      const isDark = root.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        root.removeAttribute('data-theme');
+        fab.textContent = '🌙';
+      } else {
+        root.setAttribute('data-theme', 'dark');
+        fab.textContent = '☀️';
+      }
+    });
+
+    /* ──────────────────────────────────────────────────────────────────
+       Auto tour — a slow, continuous scroll down the whole page.
+       Uses requestAnimationFrame for smooth motion; the speed is expressed
+       in pixels per second, so it stays constant regardless of the monitor.
+       It stops automatically at the bottom or if the user scrolls manually.
+       ────────────────────────────────────────────────────────────────── */
+    const scrollFab = document.getElementById('scrollFab');
+    const SPEED = 35;            // pixels per second (increase for a faster tour)
+    let scrolling = false;
+    let rafId = null;
+    let lastTs = null;
+
+    function step(ts) {
+      if (!scrolling) return;
+      if (lastTs === null) lastTs = ts;
+      const dt = (ts - lastTs) / 1000;   // seconds elapsed since the last frame
+      lastTs = ts;
+
+      window.scrollBy(0, SPEED * dt);
+
+      const atBottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 1;
+      if (atBottom) { stopScroll(); return; }
+
+      rafId = requestAnimationFrame(step);
+    }
+
+    function startScroll() {
+      scrolling = true;
+      lastTs = null;
+      scrollFab.classList.add('active');
+      scrollFab.textContent = '⏸ stop';
+      rafId = requestAnimationFrame(step);
+    }
+
+    function stopScroll() {
+      scrolling = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      scrollFab.classList.remove('active');
+      scrollFab.textContent = '▶ auto tour';
+    }
+
+    scrollFab.addEventListener('click', () => scrolling ? stopScroll() : startScroll());
+
+    // If the user scrolls manually (wheel/touch), stop the auto tour
+    ['wheel', 'touchmove'].forEach((evt) =>
+      window.addEventListener(evt, () => { if (scrolling) stopScroll(); }, { passive: true })
+    );
+
+    // Start the auto tour automatically on load, after a short pause so the
+    // page has time to render. Respects users who prefer reduced motion.
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) {
+      window.addEventListener('load', () => setTimeout(startScroll, 1200));
+    }
+  </script>
+</body>
+</html>

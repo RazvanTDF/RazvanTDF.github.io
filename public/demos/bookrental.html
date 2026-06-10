@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BookRental · Răzvan Todor</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88, 166, 255, 0.12);
+    --success: #3fb950;
+    --warning: #d29922;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* === NAV === */
+  nav {
+    position: sticky;
+    top: 0;
+    background: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+  }
+  nav .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+  nav .logo {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text);
+  }
+  nav .logo span { color: var(--accent); }
+  nav ul {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+  }
+  nav a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.15s;
+  }
+  nav a:hover { color: var(--accent); }
+
+  /* === HERO === */
+  .hero {
+    padding: 96px 0 64px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero .tag {
+    display: inline-block;
+    padding: 4px 12px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: 48px;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .hero h1 .accent { color: var(--accent); }
+  .hero .subtitle {
+    font-size: 18px;
+    color: var(--text-dim);
+    max-width: 680px;
+    margin-bottom: 28px;
+  }
+  .hero .meta {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .hero .meta span::before {
+    content: "→ ";
+    color: var(--accent);
+  }
+
+  /* === SECTIONS === */
+  section {
+    padding: 80px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  section:last-of-type { border-bottom: none; }
+
+  .section-header {
+    margin-bottom: 40px;
+  }
+  .section-header .label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .section-header h2 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+  .section-header p {
+    color: var(--text-dim);
+    max-width: 700px;
+  }
+
+  /* === GRID === */
+  .grid {
+    display: grid;
+    gap: 16px;
+  }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 36px; }
+    section { padding: 56px 0; }
+    nav ul { gap: 16px; }
+  }
+
+  /* === CARDS === */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card h3 .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .card p {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .card code {
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  /* === TECH BADGES === */
+  .tech-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  .badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  /* === FEATURE LIST === */
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .feature .icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .feature h4 {
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .feature p {
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+  .feature code {
+    background: var(--surface-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  /* === ARCHITECTURE === */
+  .arch {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 32px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px;
+    overflow-x: auto;
+  }
+  .arch-layer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .arch-layer:last-child { margin-bottom: 0; }
+  .arch-layer .name {
+    color: var(--accent);
+    font-weight: 600;
+    min-width: 140px;
+  }
+  .arch-layer .desc {
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .arch-arrow {
+    text-align: center;
+    color: var(--text-dim);
+    margin: 4px 0;
+    font-size: 18px;
+  }
+
+  /* === CURRICULUM === */
+  .module {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .module h3 {
+    color: var(--accent);
+    font-size: 15px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .module ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+  .module li {
+    padding: 6px 0;
+    color: var(--text);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .module li::before {
+    content: "▸";
+    color: var(--accent);
+    font-size: 10px;
+  }
+
+  /* === NOTE === */
+  .note {
+    background: rgba(210, 153, 34, 0.08);
+    border: 1px solid rgba(210, 153, 34, 0.3);
+    border-left: 3px solid var(--warning);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+    color: var(--text-dim);
+  }
+  .note strong { color: var(--warning); }
+
+  /* === FOOTER === */
+  footer {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="logo">Răzvan <span>Todor</span></div>
+    <ul>
+      <li><a href="#project">Project</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#academy">Academy</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="container">
+    <span class="tag">Java Academy 2025–2026 · 3Pillar / Savnet</span>
+    <h1>BookRental — a <span class="accent">library rental system</span> built with Spring Boot.</h1>
+    <p class="subtitle">
+      A REST backend in Java 21 + Spring Boot 3 with PostgreSQL, Hibernate ORM, scheduled
+      background jobs and email integration. Built end-to-end as part of the Java Academy
+      training program.
+    </p>
+    <div class="meta">
+      <span>Java 21 + Spring Boot 3</span>
+      <span>PostgreSQL + Hibernate</span>
+      <span>REST API tested with Postman</span>
+      <span>Docker for local services</span>
+    </div>
+  </div>
+</header>
+
+<section id="project">
+  <div class="container">
+    <div class="section-header">
+      <div class="label">01 · Project</div>
+      <h2>What the application does</h2>
+      <p>
+        BookRental manages a complete book rental system for libraries: users, book copies,
+        rental workflows with state transitions, automatic email notifications, and scheduled
+        jobs that run in the background.
+      </p>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card">
+        <h3><span class="dot"></span>Catalog</h3>
+        <p>Books, authors, publishers and libraries — each book with multiple copies distributed across different libraries.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Rentals</h3>
+        <p>Full rental workflow with status transitions: PENDING → IN_PROGRESS → FINISHED / DELAYED / CANCELED.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Notifications</h3>
+        <p>Automatic emails for confirmations, reminders and cancellations. Asynchronous dispatch with <code>@Async</code>.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Scheduled jobs</h3>
+        <p>Cron jobs that cancel unclaimed reservations, flag overdue rentals, and reassign copies in case of conflicts.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Search & Pagination</h3>
+        <p>Endpoints with optional filter parameters and configurable pagination for all major resources.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Strict validation</h3>
+        <p>DTO-level validation (Jakarta Validation) plus business rules in services with correct HTTP status codes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="container">
+    <div class="section-header">
+      <div class="label">02 · Stack</div>
+      <h2>Technologies used</h2>
+      <p>The stack was chosen to reflect a realistic enterprise Java backend setup.</p>
+    </div>
+
+    <div class="tech-list" style="margin-bottom: 32px;">
+      <span class="badge"><span class="dot"></span>Java 21</span>
+      <span class="badge"><span class="dot"></span>Spring Boot 3</span>
+      <span class="badge"><span class="dot"></span>Spring Data JPA</span>
+      <span class="badge"><span class="dot"></span>Hibernate ORM</span>
+      <span class="badge"><span class="dot"></span>PostgreSQL</span>
+      <span class="badge"><span class="dot"></span>Jakarta Validation</span>
+      <span class="badge"><span class="dot"></span>Spring Mail (SMTP)</span>
+      <span class="badge"><span class="dot"></span>Spring Scheduler</span>
+      <span class="badge"><span class="dot"></span>Spring Async</span>
+      <span class="badge"><span class="dot"></span>Gradle</span>
+      <span class="badge"><span class="dot"></span>Docker</span>
+      <span class="badge"><span class="dot"></span>Postman</span>
+      <span class="badge"><span class="dot"></span>Git</span>
+      <span class="badge"><span class="dot"></span>JWT / Keycloak (team-provided)</span>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3><span class="dot"></span>Persistence</h3>
+        <p>
+          PostgreSQL running in Docker, accessed through Spring Data JPA and Hibernate.
+          Full relational mapping: <code>@ManyToOne</code>, <code>@OneToMany</code>,
+          <code>@ManyToMany</code> with join tables, cascade and orphan removal.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Tooling & Testing</h3>
+        <p>
+          Postman for REST endpoint testing, with collections organized per resource.
+          Docker used for running PostgreSQL and Keycloak locally during development.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="container">
+    <div class="section-header">
+      <div class="label">03 · Architecture</div>
+      <h2>Layered architecture</h2>
+      <p>Clear separation of concerns across layers, each with a single responsibility — the standard pattern for Spring backends.</p>
+    </div>
+
+    <div class="arch">
+      <div class="arch-layer">
+        <span class="name">Controller</span>
+        <span class="desc">@RestController · accepts HTTP requests, validates input, delegates to the service</span>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <span class="name">Service</span>
+        <span class="desc">@Service · business logic, @Transactional, orchestrates repository + mapper + email</span>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <span class="name">Mapper</span>
+        <span class="desc">@Component · converts Entity ↔ DTO, no business logic</span>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <span class="name">Repository</span>
+        <span class="desc">JpaRepository · derived queries, custom JPQL with optional filters, pagination</span>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-layer">
+        <span class="name">Entity</span>
+        <span class="desc">@Entity · mapped to PostgreSQL tables, field-level validation, JPA relationships</span>
+      </div>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 32px;">
+      <div class="card">
+        <h3><span class="dot"></span>Isolated schedulers</h3>
+        <p>Separate <code>@Scheduled</code> classes that only trigger service methods — the business logic stays in the service layer.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>DTO at the boundary</h3>
+        <p>Entities never leave the service layer. Everything exposed through the API is a validated, explicitly shaped DTO.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <div class="section-header">
+      <div class="label">04 · Features implemented</div>
+      <h2>What I built personally</h2>
+      <p>Functionality I wrote end-to-end: from entity and repository all the way to REST endpoint tested in Postman.</p>
+    </div>
+
+    <div class="feature">
+      <div class="icon">01</div>
+      <div>
+        <h4>Complete CRUD across all entities</h4>
+        <p>Book, Author, Publisher, Library, Librarian, User, Exemplar, Rental — each with its own DTO, Mapper, Service and Controller.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="icon">02</div>
+      <div>
+        <h4>Rental status workflow</h4>
+        <p>A Status enum with an <code>isNextStatePossible()</code> method that validates allowed transitions between PENDING / IN_PROGRESS / FINISHED / DELAYED / CANCELED.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="icon">03</div>
+      <div>
+        <h4>Cron-based schedulers</h4>
+        <p>Pickup reminders for pending reservations, automatic cancellation after 3 days, overdue flagging, and copy reassignment on conflict.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="icon">04</div>
+      <div>
+        <h4>Asynchronous email dispatch</h4>
+        <p>SMTP integration via Spring Mail with <code>@Async</code> for reservation confirmations and status-change notifications.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="icon">05</div>
+      <div>
+        <h4>Pagination & search</h4>
+        <p><code>/list</code> endpoints with <code>PageRequest</code> and configurable sorting, plus <code>/search</code> endpoints with optional filters combined in JPQL.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="icon">06</div>
+      <div>
+        <h4>Two-level validation</h4>
+        <p>Jakarta Validation on DTOs (<code>@NotBlank</code>, <code>@Email</code>, <code>@Min</code>) plus business rules in services using <code>ResponseStatusException</code> for correct 404 / 400 responses.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="icon">07</div>
+      <div>
+        <h4>Full JPA relationships</h4>
+        <p>ManyToOne (Book ↔ Publisher), OneToMany (Book ↔ Exemplar), ManyToMany with join table (Book ↔ Author), with cascade and orphan removal configured.</p>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Transparency note:</strong> the <strong>Spring Security + Keycloak (JWT)</strong>
+      integration was provided by the training team as shared infrastructure. I worked with it
+      (tokens, roles, resource server configuration) but I don't claim it as my own implementation.
+    </div>
+  </div>
+</section>
+
+<section id="academy">
+  <div class="container">
+    <div class="section-header">
+      <div class="label">05 · Program</div>
+      <h2>Java Academy · 104h theory + practice</h2>
+      <p>Savnet Training Center program, sponsored by 3Pillar Global — running from November 3, 2025 to May 18, 2026.</p>
+    </div>
+
+    <div class="module">
+      <h3>Module 1 — Java Core & OOP Fundamentals</h3>
+      <ul>
+        <li>Java essentials (JDK, JRE, JVM)</li>
+        <li>Classes and objects</li>
+        <li>Inheritance & hierarchies</li>
+        <li>Polymorphism</li>
+        <li>Abstract classes & interfaces</li>
+        <li>List, Set, Map, arrays</li>
+        <li>Exception handling</li>
+        <li>Packages</li>
+        <li>SOLID principles</li>
+        <li>Enums</li>
+        <li>Generics</li>
+        <li>Design Patterns</li>
+        <li>Java Threads</li>
+        <li>Unit Testing</li>
+        <li>Streams, Optional, Records</li>
+      </ul>
+    </div>
+
+    <div class="module">
+      <h3>Module 2 — Java Web Development with Spring Boot</h3>
+      <ul>
+        <li>Java 8+ features</li>
+        <li>REST web services</li>
+        <li>Spring Boot (Web + Data)</li>
+        <li>Hibernate ORM</li>
+        <li>PostgreSQL</li>
+        <li>Git repositories</li>
+        <li>Postman for REST testing</li>
+        <li>First steps in Angular</li>
+      </ul>
+    </div>
+
+    <div class="grid grid-2" style="margin-top: 24px;">
+      <div class="card">
+        <h3><span class="dot"></span>Evaluation format</h3>
+        <p>Two exams with technical and integration exercises covering Java Core and web development.</p>
+      </div>
+      <div class="card">
+        <h3><span class="dot"></span>Certification</h3>
+        <p>Certificate of Acquired Competencies issued May 18, 2026 · SAV-26/18-05-2026.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>Răzvan Todor · 2026 · BookRental project</p>
+    <p style="margin-top: 8px; font-size: 13px;">Source code not publicly available — developed under a private training organization.</p>
+  </div>
+</footer>
+
+</body>
+</html>

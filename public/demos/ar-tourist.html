@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AR Tourist — Interactive Flow Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07080b; --accent: #5EFCCF; --accent2: #8BD3FF;
+      --text: #fff; --dim: rgba(255,255,255,0.6); --muted: rgba(255,255,255,0.35);
+      --mono: 'JetBrains Mono', monospace; --body: 'Inter', system-ui, sans-serif; --display: 'Orbitron', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: radial-gradient(ellipse at 50% 8%, #13141a 0%, #07080b 60%); min-height: 100vh; font-family: var(--body); color: var(--text); }
+    ::-webkit-scrollbar { width: 0; height: 0; }
+    button { font-family: inherit; cursor: pointer; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+    @keyframes wave { 0%,100% { transform: scaleY(0.4); } 50% { transform: scaleY(1.4); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes blink { 0%,50% { opacity: 1; } 51%,100% { opacity: 0; } }
+    @keyframes rippleOut { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(2.4); opacity: 0; } }
+    @keyframes scan { 0% { top: 6%; } 100% { top: 92%; } }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+    .layout { display: flex; gap: 36px; align-items: flex-start; justify-content: center; padding: 36px 24px; flex-wrap: wrap; }
+
+    /* Phone frame */
+    .device { width: 372px; height: 760px; border-radius: 46px; background: #000;
+      border: 11px solid #1a1c22; box-shadow: 0 40px 90px rgba(0,0,0,0.6), inset 0 0 2px rgba(255,255,255,0.1);
+      position: relative; overflow: hidden; flex-shrink: 0; }
+    .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 150px; height: 26px;
+      background: #000; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; z-index: 999; }
+    .screen { position: absolute; inset: 0; overflow: hidden; }
+    .statusbar { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 26px; font-size: 13px; font-weight: 600; z-index: 900; }
+
+    /* Sidebar */
+    .side { width: 270px; padding-top: 20px; }
+    .kicker { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+    .title { font-family: var(--display); font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .sub { font-size: 12px; color: var(--dim); line-height: 1.55; margin-bottom: 24px; }
+    .navbtn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 11px 13px;
+      border-radius: 10px; border: none; background: transparent; color: var(--dim); font-size: 12.5px;
+      font-family: var(--mono); border-left: 2px solid transparent; transition: all 0.15s; margin-bottom: 3px; }
+    .navbtn:hover { background: rgba(255,255,255,0.04); }
+    .navbtn.active { background: rgba(94,252,207,0.1); color: var(--accent); border-left: 2px solid var(--accent); }
+    .navnum { width: 20px; height: 20px; border-radius: 6px; background: rgba(255,255,255,0.06); display: flex;
+      align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+    .navbtn.active .navnum { background: var(--accent); color: #042; }
+    .hint { margin-top: 22px; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06); }
+
+    .pill { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; padding: 4px 9px;
+      border-radius: 20px; background: rgba(94,252,207,0.12); color: var(--accent); border: 1px solid rgba(94,252,207,0.25); }
+    .gbtn { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; padding: 10px 14px; border-radius: 10px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); font-size: 12px;
+      text-decoration: none; }
+    .gbtn:hover { background: rgba(255,255,255,0.09); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+  <script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+// ─── Mock data: Timișoara landmarks ─────────────────────────────────────────
+const BUILDINGS = [
+  { id: 'catedrala', name: 'Metropolitan Cathedral', short: 'Cathedral', year: '1936–1946',
+    architect: 'Ion Traianescu', style: 'Moldavian Neo-Romanian', tag: 'Historic Monument', accent: '#5EFCCF',
+    blurb: 'The symbol of Timișoara, with its 11 towers and 83-metre central spire, blends Byzantine and Moldavian Gothic influences.',
+    facts: ['11 towers, central one 83 m tall', 'Houses a museum of religious art', 'Bells cast in Timișoara'] },
+  { id: 'opera', name: 'National Theatre & Opera', short: 'Opera House', year: '1871–1875',
+    architect: 'Fellner & Helmer', style: 'Neo-Renaissance', tag: 'Historic Monument', accent: '#8BD3FF',
+    blurb: 'Anchoring Victory Square, the building hosts both the National Theatre and the Romanian Opera under one roof.',
+    facts: ['Designed by famous Viennese duo', 'Rebuilt after two fires', 'Faces the 1989 Revolution square'] },
+  { id: 'victoriei', name: 'Victory Square', short: 'Victory Sq.', year: '1900s',
+    architect: 'Various', style: 'Secession / Art Nouveau', tag: 'UNESCO Heritage', accent: '#FFB26B',
+    blurb: 'The beating heart of the city and the cradle of the 1989 Revolution, lined with elegant Secession-style palaces.',
+    facts: ['Cradle of the 1989 Revolution', 'Lined with Art Nouveau palaces', 'Pedestrian promenade'] },
+];
+
+const ICONS = {
+  ar: 'M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.2 6.5 3.6L12 11.4 5.5 7.8 12 4.2ZM5 9.5l6 3.3v6.7l-6-3.3V9.5Zm14 0v6.7l-6 3.3v-6.7l6-3.3Z',
+  map: 'M9 2 3 4v18l6-2 6 2 6-2V2l-6 2-6-2Zm0 2.2 6 2v15.6l-6-2V4.2ZM5 5.5l2-.7v15.4l-2 .7V5.5Zm14 .7V21.5l-2 .7V6.9l2-.7Z',
+  list: 'M4 6h16M4 12h16M4 18h16',
+  mic: 'M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0M12 19v3',
+  spark: 'M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8L12 2Z',
+  close: 'M6 6l12 12M18 6 6 18',
+  back: 'M15 18l-6-6 6-6',
+};
+function Ic({ d, c = '#fff', s = 22, fill, sw = 1.8 }) {
+  return <svg width={s} height={s} viewBox="0 0 24 24" fill={fill ? c : 'none'} stroke={fill ? 'none' : c}
+    strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>;
+}
+
+function StatusBar() {
+  return <div className="statusbar"><span>9:41</span><span style={{fontFamily:'var(--mono)',fontSize:11}}>AR ●</span></div>;
+}
+
+// ─── 1. Splash ──────────────────────────────────────────────────────────────
+function Splash({ next }) {
+  useEffect(() => { const t = setTimeout(next, 1800); return () => clearTimeout(t); }, []);
+  return (
+    <div className="screen" style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      background:'radial-gradient(ellipse at 50% 40%, #0e2a26, #07080b 70%)',gap:24}}>
+      <div style={{width:96,height:96,borderRadius:28,background:'linear-gradient(135deg,var(--accent),var(--accent2))',
+        display:'flex',alignItems:'center',justifyContent:'center',animation:'float 3s ease-in-out infinite',
+        boxShadow:'0 0 50px rgba(94,252,207,0.4)'}}>
+        <Ic d={ICONS.ar} c="#042" s={48} fill/>
+      </div>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontFamily:'var(--display)',fontSize:26,fontWeight:900,letterSpacing:1}}>AR TOURIST</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--accent)',letterSpacing:3,marginTop:6}}>TIMIȘOARA · DISCOVER</div>
+      </div>
+      <div style={{width:30,height:30,borderRadius:'50%',border:'2px solid rgba(94,252,207,0.25)',
+        borderTopColor:'var(--accent)',animation:'spin 0.8s linear infinite',marginTop:10}}/>
+    </div>
+  );
+}
+
+// ─── 2. Onboarding ────────────────────────────────────────────────────────────
+function Onboarding({ next }) {
+  const items = [
+    { d: ICONS.ar, t: 'Point your camera', s: 'Aim your phone at any historic building to recognise it instantly.' },
+    { d: ICONS.spark, t: 'AI tour guide', s: 'Ask anything by voice or text and get spoken answers powered by Gemini.' },
+    { d: ICONS.map, t: 'Map & collection', s: 'Explore landmarks on the map and build your discovered collection.' },
+  ];
+  return (
+    <div className="screen" style={{display:'flex',flexDirection:'column',padding:'70px 28px 36px',
+      background:'linear-gradient(180deg,#0c1119,#07080b)'}}>
+      <div className="pill" style={{alignSelf:'flex-start'}}>WELCOME</div>
+      <div style={{fontSize:24,fontWeight:700,margin:'16px 0 28px',lineHeight:1.2}}>Your pocket guide to the city's heritage</div>
+      <div style={{display:'flex',flexDirection:'column',gap:16,flex:1}}>
+        {items.map((it,i)=>(
+          <div key={i} style={{display:'flex',gap:14,alignItems:'flex-start',padding:'14px',borderRadius:14,
+            background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)',animation:`fadeUp 0.4s ${i*0.1}s both`}}>
+            <div style={{width:42,height:42,borderRadius:12,background:'rgba(94,252,207,0.12)',display:'flex',
+              alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic d={it.d} c="var(--accent)" s={22}/></div>
+            <div><div style={{fontWeight:600,fontSize:14,marginBottom:3}}>{it.t}</div>
+              <div style={{fontSize:12,color:'var(--dim)',lineHeight:1.5}}>{it.s}</div></div>
+          </div>
+        ))}
+      </div>
+      <button onClick={next} style={{height:52,borderRadius:14,border:'none',background:'var(--accent)',color:'#042',
+        fontWeight:700,fontSize:15,marginTop:20}}>Start exploring →</button>
+    </div>
+  );
+}
+
+// ─── 3. AR View ──────────────────────────────────────────────────────────────
+function ARView({ openVoice, openDetail }) {
+  const [phase, setPhase] = useState('idle'); // idle | scanning | found
+  const b = BUILDINGS[0];
+  const scan = () => { setPhase('scanning'); setTimeout(()=>setPhase('found'), 2200); };
+  return (
+    <div className="screen" style={{background:'linear-gradient(180deg,#1a2230,#0a0d14)'}}>
+      <StatusBar/>
+      {/* fake camera world */}
+      <div style={{position:'absolute',inset:0,background:
+        'linear-gradient(180deg, rgba(40,55,75,0.5), rgba(10,14,20,0.9)), repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 2px, transparent 2px 40px)'}}/>
+      <div style={{position:'absolute',bottom:'24%',left:'50%',transform:'translateX(-50%)',width:170,height:230,
+        borderRadius:'8px 8px 0 0',background:'linear-gradient(180deg,#2c3340,#1a1f29)',opacity:0.9,
+        boxShadow:'0 0 60px rgba(0,0,0,0.6)'}}>
+        <div style={{position:'absolute',top:18,left:'50%',transform:'translateX(-50%)',width:50,height:90,
+          background:'rgba(94,252,207,0.08)',borderRadius:'30px 30px 0 0',border:'1px solid rgba(94,252,207,0.2)'}}/>
+      </div>
+
+      {phase === 'scanning' && (
+        <>
+          <div style={{position:'absolute',left:'8%',right:'8%',height:2,background:'linear-gradient(90deg,transparent,var(--accent),transparent)',
+            boxShadow:'0 0 14px var(--accent)',animation:'scan 1.4s ease-in-out infinite alternate'}}/>
+          <div style={{position:'absolute',top:'46%',left:'50%',transform:'translateX(-50%)',fontFamily:'var(--mono)',
+            fontSize:11,color:'var(--accent)',letterSpacing:2}}>◉ ANALYZING · GEMINI VISION…</div>
+        </>
+      )}
+
+      {phase === 'found' && (
+        <div onClick={openDetail} style={{position:'absolute',top:'26%',left:'6%',right:'6%',
+          padding:16,borderRadius:16,background:'rgba(10,16,22,0.92)',backdropFilter:'blur(10px)',
+          border:`1px solid ${b.accent}55`,animation:'fadeUp 0.4s both',cursor:'pointer'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+            <span className="pill">{b.tag}</span>
+            <span style={{fontFamily:'var(--mono)',fontSize:10,color:b.accent}}>98% match</span>
+          </div>
+          <div style={{fontSize:17,fontWeight:700,marginBottom:4}}>{b.name}</div>
+          <div style={{fontSize:12,color:'var(--dim)',marginBottom:10}}>{b.year} · {b.style}</div>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={(e)=>{e.stopPropagation();openVoice();}} style={{flex:1,height:40,borderRadius:10,border:'none',
+              background:b.accent,color:'#042',fontWeight:600,fontSize:13,display:'flex',alignItems:'center',
+              justifyContent:'center',gap:6}}><Ic d={ICONS.mic} c="#042" s={16}/> Ask AI guide</button>
+            <button onClick={openDetail} style={{flex:1,height:40,borderRadius:10,background:'rgba(255,255,255,0.08)',
+              border:'none',color:'#fff',fontWeight:600,fontSize:13}}>Details</button>
+          </div>
+        </div>
+      )}
+
+      {/* reticle + scan button */}
+      {phase !== 'found' && (
+        <div style={{position:'absolute',top:'42%',left:'50%',transform:'translate(-50%,-50%)',width:180,height:180}}>
+          {['tl','tr','bl','br'].map(c=>(
+            <div key={c} style={{position:'absolute',width:26,height:26,
+              borderColor:'var(--accent)',borderStyle:'solid',borderWidth:0,
+              ...(c[0]==='t'?{top:0,borderTopWidth:3}:{bottom:0,borderBottomWidth:3}),
+              ...(c[1]==='l'?{left:0,borderLeftWidth:3}:{right:0,borderRightWidth:3})}}/>
+          ))}
+        </div>
+      )}
+
+      <div style={{position:'absolute',bottom:96,left:0,right:0,display:'flex',justifyContent:'center'}}>
+        <button onClick={scan} disabled={phase==='scanning'} style={{width:72,height:72,borderRadius:'50%',
+          border:'4px solid rgba(255,255,255,0.25)',background:phase==='scanning'?'rgba(94,252,207,0.2)':'var(--accent)',
+          display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 24px rgba(94,252,207,0.4)'}}>
+          {phase==='scanning'
+            ? <div style={{width:24,height:24,borderRadius:'50%',border:'3px solid rgba(0,0,0,0.3)',borderTopColor:'#042',animation:'spin 0.7s linear infinite'}}/>
+            : <Ic d={ICONS.ar} c="#042" s={30} fill/>}
+        </button>
+      </div>
+      <div style={{position:'absolute',bottom:80,left:0,right:0,textAlign:'center',fontFamily:'var(--mono)',
+        fontSize:10,color:'var(--muted)',letterSpacing:1,transform:'translateY(40px)'}}>
+        {phase==='idle'?'TAP TO SCAN A BUILDING':phase==='scanning'?'':'BUILDING RECOGNISED'}</div>
+    </div>
+  );
+}
+
+// ─── 4. Voice AI sheet ────────────────────────────────────────────────────────
+function Voice({ close }) {
+  const b = BUILDINGS[0];
+  const [msgs, setMsgs] = useState([]);
+  const [phase, setPhase] = useState('idle'); // idle | thinking | answering
+  const [typed, setTyped] = useState('');
+  const [shown, setShown] = useState('');
+  const endRef = useRef();
+  const ANSWERS = {
+    'When was it built?': 'The Metropolitan Cathedral was built between 1936 and 1946. Its construction was interrupted by World War II, yet it was consecrated in 1946 and remains the tallest Orthodox cathedral in Romania.',
+    'Who designed it?': 'It was designed by the architect Ion Traianescu in the Moldavian Neo-Romanian style, inspired by the medieval churches of northern Moldavia.',
+    'What style is it?': 'It blends Byzantine and Moldavian Gothic elements — note the colourful glazed roof tiles and the slender, layered towers typical of Romanian church architecture.',
+  };
+  const SUG = Object.keys(ANSWERS);
+
+  const ask = (q) => {
+    setTyped(''); setMsgs(m => [...m, { r:'user', c:q }]); setPhase('thinking');
+    setTimeout(() => {
+      const a = ANSWERS[q] || 'That is a great question — in the full app, Gemini generates a tailored answer and Edge TTS reads it aloud in Romanian.';
+      setMsgs(m => [...m, { r:'ai', c:a }]); setPhase('answering'); setShown('');
+    }, 1100);
+  };
+
+  useEffect(() => {
+    if (phase !== 'answering') return;
+    const full = msgs[msgs.length-1].c; let i = 0;
+    const iv = setInterval(() => { i += 3; setShown(full.slice(0,i));
+      if (i >= full.length) { setShown(full); setPhase('idle'); clearInterval(iv); } }, 18);
+    return () => clearInterval(iv);
+  }, [phase]);
+  useEffect(() => { endRef.current?.scrollIntoView({behavior:'smooth'}); }, [msgs, shown]);
+
+  return (
+    <div className="screen" style={{zIndex:200,background:'rgba(0,0,0,0.5)',backdropFilter:'blur(6px)',display:'flex',
+      flexDirection:'column',justifyContent:'flex-end',animation:'fadeIn 0.2s'}} onClick={close}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'linear-gradient(180deg,rgba(12,17,25,0.99),rgba(8,10,16,0.99))',
+        borderTopLeftRadius:24,borderTopRightRadius:24,border:'1px solid rgba(255,255,255,0.08)',padding:'10px 18px 28px',
+        animation:'fadeUp 0.35s cubic-bezier(0.16,1,0.3,1)',maxHeight:'80%',display:'flex',flexDirection:'column'}}>
+        <div style={{width:40,height:4,borderRadius:2,background:'rgba(255,255,255,0.18)',alignSelf:'center',marginBottom:12}}/>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+          <div><div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',letterSpacing:2,display:'flex',gap:6,alignItems:'center'}}>
+            <Ic d={ICONS.spark} c="var(--accent)" s={11} fill/> AI GUIDE · EDGE TTS</div>
+            <div style={{fontSize:15,fontWeight:600,marginTop:3}}>About {b.short}</div></div>
+          <button onClick={close} style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,0.08)',
+            border:'none',display:'flex',alignItems:'center',justifyContent:'center'}}><Ic d={ICONS.close} c="var(--dim)" s={14}/></button>
+        </div>
+
+        {/* visualizer */}
+        <div style={{height:80,display:'flex',alignItems:'center',justifyContent:'center',position:'relative'}}>
+          {phase==='thinking' ? (
+            <div style={{width:54,height:54,borderRadius:'50%',border:'2px solid var(--accent)',borderTopColor:'transparent',animation:'spin 0.8s linear infinite'}}/>
+          ) : phase==='answering' ? (
+            <div style={{display:'flex',gap:3,alignItems:'center',height:36}}>
+              {[0.5,1.2,0.8,1.4,0.6,1.1,0.7].map((h,i)=>(<div key={i} style={{width:4,height:28,borderRadius:2,
+                background:'var(--accent)',animation:`wave ${0.3+i*0.06}s ease-in-out infinite alternate`,transform:`scaleY(${h})`}}/>))}
+            </div>
+          ) : (
+            <div style={{width:60,height:60,borderRadius:'50%',background:'radial-gradient(circle,rgba(94,252,207,0.18),transparent 70%)',
+              border:'1.5px solid rgba(94,252,207,0.4)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <Ic d={ICONS.mic} c="var(--accent)" s={24}/></div>
+          )}
+        </div>
+        <div style={{textAlign:'center',fontFamily:'var(--mono)',fontSize:10,color:'var(--accent)',letterSpacing:2,marginBottom:12}}>
+          {phase==='thinking'?'THINKING…':phase==='answering'?'◉ SPEAKING · ro-RO-AlinaNeural':'TAP A QUESTION OR TYPE'}</div>
+
+        {/* conversation */}
+        {msgs.length>0 && (
+          <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:10,marginBottom:12,maxHeight:240}}>
+            {msgs.map((m,i)=>(
+              <div key={i} style={{padding:'10px 13px',borderRadius:12,
+                background:m.r==='user'?'rgba(255,255,255,0.04)':'linear-gradient(135deg,rgba(94,252,207,0.08),rgba(255,255,255,0.02))',
+                border:`1px solid ${m.r==='user'?'rgba(255,255,255,0.06)':'rgba(94,252,207,0.2)'}`,animation:'fadeUp 0.25s'}}>
+                <div style={{fontFamily:'var(--mono)',fontSize:9,letterSpacing:1.5,marginBottom:5,
+                  color:m.r==='user'?'var(--muted)':'var(--accent)'}}>{m.r==='user'?'YOU':'AI'}</div>
+                <div style={{fontSize:13,lineHeight:1.55,color:'var(--text)'}}>
+                  {m.r==='ai' && i===msgs.length-1 && phase==='answering' ? shown : m.c}</div>
+              </div>
+            ))}
+            <div ref={endRef}/>
+          </div>
+        )}
+
+        {/* suggestions */}
+        {msgs.length===0 && (
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+            {SUG.map((q,i)=>(<button key={i} onClick={()=>ask(q)} style={{textAlign:'left',padding:'10px 13px',
+              borderRadius:10,background:'rgba(94,252,207,0.05)',border:'1px solid rgba(94,252,207,0.22)',
+              color:'var(--text)',fontSize:12,display:'flex',alignItems:'center',gap:8}}>
+              <Ic d={ICONS.mic} c="var(--accent)" s={12}/> {q}</button>))}
+          </div>
+        )}
+
+        {/* input */}
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <input value={typed} onChange={e=>setTyped(e.target.value)} onKeyDown={e=>e.key==='Enter'&&typed.trim()&&ask(typed.trim())}
+            placeholder="Type or speak…" style={{flex:1,height:44,borderRadius:12,background:'rgba(255,255,255,0.05)',
+            border:'1px solid rgba(255,255,255,0.1)',color:'#fff',padding:'0 14px',outline:'none',fontSize:13,fontFamily:'var(--body)'}}/>
+          <button onClick={()=>typed.trim()&&ask(typed.trim())} style={{width:52,height:52,borderRadius:'50%',
+            border:'2px solid var(--accent)',background:'radial-gradient(circle,rgba(94,252,207,0.25),rgba(94,252,207,0.08))',
+            display:'flex',alignItems:'center',justifyContent:'center'}}><Ic d={ICONS.mic} c="var(--accent)" s={22}/></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 5. Detail ────────────────────────────────────────────────────────────────
+function Detail({ back, openVoice }) {
+  const b = BUILDINGS[0];
+  return (
+    <div className="screen" style={{zIndex:150,background:'#07080b',overflowY:'auto'}}>
+      <div style={{height:220,background:`linear-gradient(180deg, ${b.accent}22, #0a0d14), radial-gradient(circle at 30% 30%, ${b.accent}33, transparent 60%)`,
+        position:'relative',display:'flex',alignItems:'flex-end',padding:18}}>
+        <button onClick={back} style={{position:'absolute',top:50,left:16,width:38,height:38,borderRadius:'50%',
+          background:'rgba(0,0,0,0.4)',backdropFilter:'blur(8px)',border:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Ic d={ICONS.back} c="#fff" s={20}/></button>
+        <Ic d={ICONS.ar} c={b.accent+'55'} s={120} fill/>
+      </div>
+      <div style={{padding:'18px 20px 36px'}}>
+        <span className="pill">{b.tag}</span>
+        <div style={{fontSize:22,fontWeight:700,margin:'12px 0 4px'}}>{b.name}</div>
+        <div style={{fontSize:13,color:'var(--dim)',marginBottom:16}}>{b.year} · {b.architect}</div>
+        <div style={{fontSize:14,lineHeight:1.65,color:'var(--text)',marginBottom:20}}>{b.blurb}</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--muted)',letterSpacing:2,marginBottom:10}}>KEY FACTS</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:24}}>
+          {b.facts.map((f,i)=>(<div key={i} style={{display:'flex',gap:10,padding:'12px 14px',borderRadius:12,
+            background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)'}}>
+            <Ic d={ICONS.spark} c={b.accent} s={16} fill/><span style={{fontSize:13,color:'var(--dim)'}}>{f}</span></div>))}
+        </div>
+        <button onClick={openVoice} style={{width:'100%',height:50,borderRadius:14,border:'none',background:b.accent,
+          color:'#042',fontWeight:700,fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          <Ic d={ICONS.mic} c="#042" s={18}/> Ask the AI guide</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── 6. Map ────────────────────────────────────────────────────────────────────
+function MapScreen({ openDetail }) {
+  const pins = [{x:'30%',y:'34%',b:BUILDINGS[0]},{x:'62%',y:'48%',b:BUILDINGS[1]},{x:'45%',y:'66%',b:BUILDINGS[2]}];
+  return (
+    <div className="screen" style={{background:'#0a0e14'}}>
+      <StatusBar/>
+      <div style={{position:'absolute',inset:0,background:
+        'repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 44px), repeating-linear-gradient(90deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 44px), radial-gradient(circle at 50% 45%, #16202c, #0a0e14)'}}/>
+      <div style={{position:'absolute',top:'30%',left:'15%',width:'60%',height:3,background:'rgba(94,252,207,0.15)',transform:'rotate(20deg)'}}/>
+      <div style={{position:'absolute',top:'55%',left:'25%',width:'55%',height:3,background:'rgba(139,211,255,0.12)',transform:'rotate(-12deg)'}}/>
+      <div style={{position:'absolute',top:56,left:0,right:0,textAlign:'center'}}>
+        <span className="pill">TIMIȘOARA · 3 LANDMARKS NEARBY</span></div>
+      {pins.map((p,i)=>(
+        <button key={i} onClick={openDetail} style={{position:'absolute',left:p.x,top:p.y,transform:'translate(-50%,-100%)',
+          background:'none',border:'none',display:'flex',flexDirection:'column',alignItems:'center'}}>
+          <div style={{position:'absolute',width:34,height:34,borderRadius:'50%',background:`${p.b.accent}33`,
+            animation:'rippleOut 2.4s ease-out infinite'}}/>
+          <div style={{width:30,height:30,borderRadius:'50% 50% 50% 0',background:p.b.accent,transform:'rotate(-45deg)',
+            display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 16px ${p.b.accent}88`}}>
+            <div style={{transform:'rotate(45deg)'}}><Ic d={ICONS.ar} c="#042" s={15} fill/></div></div>
+          <div style={{marginTop:6,fontSize:10,fontWeight:600,background:'rgba(0,0,0,0.6)',padding:'3px 7px',
+            borderRadius:6,whiteSpace:'nowrap'}}>{p.b.short}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── 7. Discovered ──────────────────────────────────────────────────────────────
+function Discovered({ openDetail }) {
+  return (
+    <div className="screen" style={{background:'#07080b',padding:'62px 18px 96px',overflowY:'auto'}}>
+      <span className="pill">YOUR COLLECTION</span>
+      <div style={{fontSize:22,fontWeight:700,margin:'12px 0 4px'}}>Discovered</div>
+      <div style={{fontSize:13,color:'var(--dim)',marginBottom:20}}>1 of 3 landmarks explored · keep scanning!</div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        {BUILDINGS.map((b,i)=>{
+          const found = i===0;
+          return (
+            <button key={b.id} onClick={found?openDetail:undefined} style={{display:'flex',gap:14,padding:14,borderRadius:14,
+              textAlign:'left',background:found?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.015)',
+              border:`1px solid ${found?b.accent+'33':'rgba(255,255,255,0.05)'}`,opacity:found?1:0.5}}>
+              <div style={{width:56,height:56,borderRadius:12,flexShrink:0,
+                background:found?`radial-gradient(circle,${b.accent}33,${b.accent}10)`:'rgba(255,255,255,0.04)',
+                display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <Ic d={found?ICONS.ar:ICONS.close} c={found?b.accent:'var(--muted)'} s={26} fill={found}/></div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:600,color:found?'#fff':'var(--muted)'}}>{found?b.name:'Not yet discovered'}</div>
+                <div style={{fontSize:12,color:'var(--dim)',marginTop:3}}>{found?`${b.year} · ${b.style}`:'Scan it in AR to unlock'}</div>
+              </div>
+              {found && <div style={{alignSelf:'center',fontFamily:'var(--mono)',fontSize:9,color:b.accent}}>✓</div>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TabBar({ tab, setTab }) {
+  const tabs = [{k:'ar',d:ICONS.ar,l:'AR'},{k:'map',d:ICONS.map,l:'Map'},{k:'list',d:ICONS.list,l:'Discovered'}];
+  return (
+    <div style={{position:'absolute',bottom:0,left:0,right:0,zIndex:100,background:'rgba(7,8,12,0.92)',
+      backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,0.06)',paddingBottom:24,paddingTop:8,
+      display:'flex',justifyContent:'space-around'}}>
+      {tabs.map(t=>(
+        <button key={t.k} onClick={()=>setTab(t.k)} style={{background:'none',border:'none',display:'flex',
+          flexDirection:'column',alignItems:'center',gap:4,flex:1}}>
+          <Ic d={t.d} c={tab===t.k?'var(--accent)':'rgba(255,255,255,0.35)'} s={22} fill={t.k==='ar'&&tab===t.k}/>
+          <span style={{fontSize:10,fontWeight:600,color:tab===t.k?'var(--accent)':'rgba(255,255,255,0.35)'}}>{t.l}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Shell ────────────────────────────────────────────────────────────────────
+function App() {
+  const [flow, setFlow] = useState('splash'); // splash | onboarding | home
+  const [tab, setTab] = useState('ar');
+  const [detail, setDetail] = useState(false);
+  const [voice, setVoice] = useState(false);
+
+  let current = (flow==='splash'||flow==='onboarding') ? flow : tab;
+  if (voice) current = 'voice'; else if (detail) current = 'detail';
+
+  const steps = [
+    {id:'splash',l:'Splash',n:1,go:()=>{setFlow('splash');}},
+    {id:'onboarding',l:'Onboarding',n:2,go:()=>{setFlow('onboarding');}},
+    {id:'ar',l:'AR View',n:3,go:()=>{setFlow('home');setTab('ar');setDetail(false);setVoice(false);}},
+    {id:'voice',l:'Voice AI Guide',n:4,go:()=>{setFlow('home');setTab('ar');setVoice(true);setDetail(false);}},
+    {id:'detail',l:'Building Detail',n:5,go:()=>{setFlow('home');setTab('ar');setDetail(true);setVoice(false);}},
+    {id:'map',l:'Map',n:6,go:()=>{setFlow('home');setTab('map');setDetail(false);setVoice(false);}},
+    {id:'list',l:'Discovered',n:7,go:()=>{setFlow('home');setTab('list');setDetail(false);setVoice(false);}},
+  ];
+
+  return (
+    <div className="layout">
+      <div className="device">
+        <div className="notch"/>
+        {flow==='splash' && <Splash next={()=>setFlow('onboarding')}/>}
+        {flow==='onboarding' && <Onboarding next={()=>setFlow('home')}/>}
+        {flow==='home' && (
+          <div className="screen">
+            {!detail && tab==='ar' && <ARView openVoice={()=>setVoice(true)} openDetail={()=>setDetail(true)}/>}
+            {!detail && tab==='map' && <MapScreen openDetail={()=>setDetail(true)}/>}
+            {!detail && tab==='list' && <Discovered openDetail={()=>setDetail(true)}/>}
+            {detail && <Detail back={()=>setDetail(false)} openVoice={()=>setVoice(true)}/>}
+            {voice && <Voice close={()=>setVoice(false)}/>}
+            <TabBar tab={tab} setTab={(k)=>{setTab(k);setDetail(false);}}/>
+          </div>
+        )}
+      </div>
+
+      <div className="side">
+        <div className="kicker">◆ AR TOURIST</div>
+        <div className="title">Interactive Demo</div>
+        <div className="sub">A clickable walkthrough of the app flow. No backend required — the AI answers and recognition here are scripted to illustrate the real experience.</div>
+        <div className="kicker">FLOW</div>
+        <div style={{marginBottom:8}}>
+          {steps.map(s=>(
+            <button key={s.id} className={'navbtn'+(current===s.id?' active':'')} onClick={s.go}>
+              <span className="navnum">{s.n}</span>{s.l}</button>
+          ))}
+        </div>
+        <div className="hint">
+          <div className="kicker" style={{marginBottom:6}}>TRY IT</div>
+          <div style={{fontSize:11.5,color:'var(--dim)',lineHeight:1.6}}>
+            Press the round <span style={{color:'var(--accent)'}}>green button</span> on the AR screen to scan, then tap <span style={{color:'var(--accent)'}}>Ask AI guide</span> and pick a question.</div>
+        </div>
+        <a className="gbtn" href="https://github.com/florinamare/ETDM" target="_blank" rel="noopener">↗ Source on GitHub</a>
+        <div style={{marginTop:16,fontFamily:'var(--mono)',fontSize:9.5,color:'var(--muted)',letterSpacing:0.5,lineHeight:1.7}}>
+          React Native · ViroReact · Node / Express<br/>Firebase · FastAPI · Gemini 2.0 · Edge TTS</div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

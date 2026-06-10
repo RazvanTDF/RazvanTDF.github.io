@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.local
+
+# ---------------------------------------------------------------------------
+# Original CV source files — kept on your machine, NOT deployed.
+# Optimized copies already live in /public, which IS deployed.
+# ---------------------------------------------------------------------------
+/IMG_*.jpg
+/*.sql
+/*.png
+/bookrental.html
+/demo.html
+/indexFSADD.html
+/indexTRR.html
+/link_github_menu_resturant.txt
+/.preview/
